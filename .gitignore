@@ -1,0 +1,10 @@
+node_modules/
+dist/
+src-tauri/target/
+*.tsbuildinfo
+*.log
+release/
+.filedesk-smoke.pid
+.cache/
+src-tauri/decoder/
+src-tauri/gen/schemas/

@@ -1,0 +1,9 @@
+FileDesk video runtime: VLC / LibVLC 3.0.23, VideoLAN and contributors.
+Unmodified official Windows x64 distribution, dynamically loaded.
+Website: https://www.videolan.org/vlc/
+Binary: https://download.videolan.org/pub/videolan/vlc/3.0.23/win64/vlc-3.0.23-win64.zip
+Corresponding source: https://download.videolan.org/pub/videolan/vlc/3.0.23/vlc-3.0.23.tar.xz
+Full notices and license text are preserved in decoder/COPYING.txt,
+decoder/AUTHORS.txt, decoder/THANKS.txt and decoder/README.txt.
+LibVLC and bundled plugins have their respective LGPL/GPL and third-party licenses.
+The decoder directory is replaceable; no static linking or DRM restriction is applied.
