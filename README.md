@@ -2,15 +2,33 @@
 
 面向 Synology DSM 7.2 的桌面文件管理客户端。Rust + Tauri 2 + React / TypeScript，优先 Windows，保留 macOS 扩展能力。
 
-## 本次交付
+## 安装与更新
 
-v0.3.7：启动时自动登录上次使用且已记住密码的账号，密码由系统凭据库读取；未保存密码、需要验证码或连接失败时弹出登录窗口。移除顶部重复的连接状态提示。账号切换、文件排序与主题/缩略图菜单统一为圆角浮层，支持亮暗主题、键盘选择和外部点击关闭。快速访问固定在左侧目录树上方，收藏项显示当前路径并提供独立移除按钮；目录树独立滚动，行间距更紧凑。
+当前版本为 v0.4.0。下载 [GitHub Release](https://github.com/hyieq/DSFileDesk/releases/latest) 中的 `FileDesk-0.4.0-windows-x64.msi` 并运行，安装包包含视频解码器及第三方许可信息。MSI 使用固定 UpgradeCode，后续新版可覆盖升级；账号保存在用户应用数据目录，密码由系统凭据库管理。
 
-解压 `release/FileDesk-0.3.7-windows-x64.zip`，运行其中的 `FileDesk.exe`（Windows x64，需要系统已安装 WebView2）。请保留同目录 `decoder` 文件夹，它包含视频解码内核。程序内置前端资源，不需要 Node.js、开发服务器或另行安装 VLC。
+打开左上角账号卡片，在账号窗口左下角点击“检查更新”。客户端通过 GitHub Releases 公共 API 检查正式版，按语义版本号比较，下载匹配的 Windows x64 MSI，验证长度与 SHA-256，随后可点击“安装更新”。安装将关闭客户端，存在文件传输任务时暂不允许安装。新版安装包在 GitHub 上随 Release 一起提供，仓库和 Release 必须可公开访问。SHA-256 优先读取 GitHub asset digest，兼容同一 Release 中的 `SHA256SUMS.txt`；软件目前未使用 Windows Authenticode 证书签名。
 
-已验证：前端生产构建、12 项前端测试、8 项 Rust 测试（含模拟 DSM HTTP / 缩略图 / 视频 Range 转发与关闭回收测试）。浏览器实际检查了外部点击关闭右键菜单、Backspace 返回上级、超大缩略图和鼠标框选。`python scripts/test-decoder.py` 使用本地生成的视频验证随包 LibVLC 实际解码，并检查暂停、跳转和音量接口。真实 NAS 视频播放与 Windows 原生视频画面嵌入仍需实机验收。
+GitHub 请求受限或网络失败会显示错误，可再次检查。预发布版本和旧版本不会作为更新安装；下载失败或校验失败的文件不能进入安装流程。
 
-NSIS 安装包生成因 GitHub 上打包工具下载超时未完成，本次交付的是可直接运行的 EXE / ZIP，不是安装向导。没有真实 NAS 凭据，因此不能声称已通过实机兼容性测试。
+已验证：前端生产构建、12 项前端测试、14 项 Rust 测试，覆盖模拟 DSM 上传鉴权与流式数据、更新版本比较、来源地址约束、摘要解析及篡改检测。真实 NAS 上传与原生视频画面仍需实机验收。
+
+## 发布 MSI
+
+```powershell
+npm ci
+./scripts/package-release.ps1
+```
+
+脚本会在需要时下载官方 LibVLC 并验证校验值，然后构建 MSI；输出为 `release/FileDesk-<版本>-windows-x64.msi` 和 `release/SHA256SUMS.txt`。本地需要使用 rsproxy 时可传 `-UseRegistryMirror`。
+
+版本号需同步修改 `package.json`、`package-lock.json` 根包、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`，并让 Cargo 更新锁文件中的 FileDesk 版本。更新 `.github/release-notes.md`，提交后推送 `v<版本>` 标签，会触发 `.github/workflows/release.yml`：Windows 构建、前后端测试、上传 Actions 构件，最后创建 GitHub Release 并上传 MSI 与 SHA-256 清单。手动触发 workflow 只生成 Actions 构件，标签触发才公开发布 Release。
+
+### v0.4.0 变更
+
+- 增加 MSI 安装、GitHub Releases 检查更新、下载与校验、启动安装。
+- 修正上传鉴权参数，避免 multipart 拖拽上传误报 DSM 119。
+- 已完成的下载任务提供“打开文件位置”。
+- 保留多账号、自动登录、图片与视频缩略图、图片预览、视频播放、亮暗主题及目录导航功能。
 
 ## 启动
 
@@ -31,7 +49,7 @@ cargo test --manifest-path src-tauri/Cargo.toml
 npm run tauri build
 ```
 
-Windows 安装包位于 `src-tauri/target/release/bundle/nsis/`，独立程序位于 `src-tauri/target/release/filedesk.exe`。首次构建需要联网下载依赖。
+Windows MSI 安装包位于 `src-tauri/target/release/bundle/msi/`，独立程序位于 `src-tauri/target/release/filedesk.exe`。首次构建需要联网下载依赖。
 
 ## v0.3.7 启动与登录
 

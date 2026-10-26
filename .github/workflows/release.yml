@@ -1,0 +1,67 @@
+name: Windows MSI Release
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  windows-msi:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.90.0
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Verify release version
+        shell: pwsh
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $configVersion = (Get-Content src-tauri/tauri.conf.json -Raw | ConvertFrom-Json).version
+          if ($version -ne $configVersion) { throw 'Version mismatch' }
+          if ('${{ github.ref_type }}' -eq 'tag' -and '${{ github.ref_name }}' -ne "v$version") { throw 'Release tag does not match the app version' }
+      - name: Prepare decoder
+        shell: pwsh
+        run: ./scripts/fetch-decoder.ps1
+      - name: Run frontend tests
+        run: npm test
+      - name: Run Rust tests
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+      - name: Build MSI and SHA-256 manifest
+        shell: pwsh
+        run: ./scripts/package-release.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FileDesk-windows-x64-msi
+          path: |
+            release/*.msi
+            release/SHA256SUMS.txt
+          if-no-files-found: error
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = '${{ github.ref_name }}'
+          gh release view $tag --repo '${{ github.repository }}' *> $null
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $tag --verify-tag --draft --title "FileDesk $tag" --notes-file .github/release-notes.md --repo '${{ github.repository }}'
+            if ($LASTEXITCODE -ne 0) { throw 'Could not create release' }
+          }
+          $msi = Get-ChildItem release -Filter '*.msi'
+          gh release upload $tag $msi.FullName release/SHA256SUMS.txt --clobber --repo '${{ github.repository }}'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not upload release assets' }
+          gh release edit $tag --draft=false --latest --repo '${{ github.repository }}'
+          if ($LASTEXITCODE -ne 0) { throw 'Could not publish release' }

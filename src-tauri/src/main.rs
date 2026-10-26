@@ -2,6 +2,7 @@
 mod media;
 mod synology;
 mod transfer;
+mod updater;
 mod video;
 use serde::{Deserialize, Serialize};
 use std::{
@@ -170,7 +171,11 @@ fn main() {
         .plugin(tauri_plugin_dialog::init())
         .manage(AppState::default())
         .manage(video::VideoState::default())
+        .manage(updater::UpdateState::default())
         .invoke_handler(tauri::generate_handler![
+            updater::check_update,
+            updater::download_update,
+            updater::install_update,
             accounts,
             connect,
             disconnect,
@@ -179,6 +184,7 @@ fn main() {
             operate,
             transfer::upload,
             transfer::download,
+            transfer::reveal_download,
             transfer::cancel_transfer,
             transfer::prepare_drag,
             transfer::native_drag,

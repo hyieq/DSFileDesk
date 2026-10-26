@@ -20,6 +20,7 @@ import {
   Film,
   Folder,
   FolderPlus,
+  FolderOpen,
   HardDrive,
   LayoutGrid,
   List,
@@ -56,6 +57,7 @@ import { clearMediaCache, mediaKind } from "./media";
 import MediaThumbnail from "./MediaThumbnail";
 import ImageViewer from "./ImageViewer";
 import ThemeControl from "./ThemeControl";
+import UpdateControl, { useAppUpdate } from "./UpdateControl";
 import DirectoryTree from "./DirectoryTree";
 import ThumbnailMenu from "./ThumbnailMenu";
 import ChoiceMenu from "./ChoiceMenu";
@@ -105,6 +107,7 @@ export default function App() {
   } | null>(null);
   const [mediaRevision, setMediaRevision] = useState(0);
   const [starting, setStarting] = useState(true);
+  const updates = useAppUpdate();
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [active, setActive] = useState("");
   const [connected, setConnected] = useState<string[]>([]);
@@ -386,6 +389,7 @@ export default function App() {
     name: string,
     direction: "upload" | "download",
     fn: (id: string) => Promise<unknown>,
+    destination?: string,
   ) {
     const id = crypto.randomUUID();
     setTransfers((t) => [
@@ -396,7 +400,19 @@ export default function App() {
     try {
       const result = await fn(id);
       setTransfers((t) =>
-        t.map((x) => (x.id === id ? { ...x, status: "done" } : x)),
+        t.map((x) =>
+          x.id === id
+            ? {
+                ...x,
+                status: "done",
+                localPath:
+                  direction === "download"
+                    ? destination ||
+                      (typeof result === "string" ? result : undefined)
+                    : undefined,
+              }
+            : x,
+        ),
       );
       return result;
     } catch (e) {
@@ -450,7 +466,7 @@ export default function App() {
     listen<Partial<Transfer> & { id: string }>("transfer-progress", (event) =>
       setTransfers((t) =>
         t.map((x) =>
-          x.id === event.payload.id
+          x.id === event.payload.id && x.status === "running"
             ? { ...x, ...event.payload, status: "running" }
             : x,
         ),
@@ -484,8 +500,17 @@ export default function App() {
         : `${picked.length === 1 ? picked[0].name : "FileDesk-下载"}.zip`;
     const destination = await save({ defaultPath: name });
     if (!destination) return;
-    await task(name, "download", (taskId) =>
-      invoke("download", { id: active, paths: selected, destination, taskId }),
+    await task(
+      name,
+      "download",
+      (taskId) =>
+        invoke("download", {
+          id: active,
+          paths: selected,
+          destination,
+          taskId,
+        }),
+      destination,
     );
   }
   async function prepare() {
@@ -1373,7 +1398,23 @@ export default function App() {
                       )}
                     </div>
                     {t.status === "done" ? (
-                      <CheckCircle2 size={17} className="success" />
+                      t.direction === "download" && t.localPath ? (
+                        <button
+                          className="reveal-download"
+                          title="打开文件位置"
+                          aria-label={`打开文件位置：${t.name}`}
+                          onClick={() =>
+                            void invoke("reveal_download", {
+                              path: t.localPath,
+                            }).catch((e) => setToast(String(e)))
+                          }
+                        >
+                          <FolderOpen size={16} />
+                          <span>打开文件位置</span>
+                        </button>
+                      ) : (
+                        <CheckCircle2 size={17} className="success" />
+                      )
                     ) : t.status === "running" ? (
                       <button
                         title="取消传输"
@@ -1472,35 +1513,41 @@ export default function App() {
             </div>
             <div className="account-modal-body">
               <aside>
-                <b>我的账号</b>
-                {accounts.map((a) => (
-                  <div
-                    className={`saved-account ${editing.id === a.id ? "selected" : ""}`}
-                    key={a.id}
-                  >
-                    <button
-                      onClick={() => {
-                        if (!connecting) editAccount(a);
-                      }}
+                <div className="account-list-content">
+                  <b>我的账号</b>
+                  {accounts.map((a) => (
+                    <div
+                      className={`saved-account ${editing.id === a.id ? "selected" : ""}`}
+                      key={a.id}
                     >
-                      <Server size={18} />
-                      <span>
-                        {a.name}
-                        <small>{a.username}</small>
-                      </span>
-                      {connected.includes(a.id) && <i />}
-                    </button>
-                  </div>
-                ))}
-                <button
-                  className="add-account"
-                  disabled={connecting}
-                  onClick={() => editAccount(blankAccount)}
-                >
-                  <Plus size={17} />
-                  添加账号
-                </button>
-                <p>每个账号拥有独立会话。可同时连接同一台或不同 NAS。</p>
+                      <button
+                        onClick={() => {
+                          if (!connecting) editAccount(a);
+                        }}
+                      >
+                        <Server size={18} />
+                        <span>
+                          {a.name}
+                          <small>{a.username}</small>
+                        </span>
+                        {connected.includes(a.id) && <i />}
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    className="add-account"
+                    disabled={connecting}
+                    onClick={() => editAccount(blankAccount)}
+                  >
+                    <Plus size={17} />
+                    添加账号
+                  </button>
+                  <p>每个账号拥有独立会话。可同时连接同一台或不同 NAS。</p>
+                </div>
+                <UpdateControl
+                  update={updates}
+                  transfersRunning={running > 0}
+                />
               </aside>
               <form onSubmit={login}>
                 <div className="form-tabs">

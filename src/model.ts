@@ -22,6 +22,7 @@ export type Transfer = {
   total: number;
   status: "running" | "done" | "error";
   error?: string;
+  localPath?: string;
 };
 export const blankAccount: Account = {
   id: "",
