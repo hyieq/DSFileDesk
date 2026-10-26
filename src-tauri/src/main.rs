@@ -1,5 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 mod media;
+mod resident;
 mod synology;
 mod transfer;
 mod updater;
@@ -168,7 +169,14 @@ async fn operate(
 }
 fn main() {
     tauri::Builder::default()
+        // Register first so duplicate processes exit before creating a WebView,
+        // loading accounts, or establishing another NAS session.
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            resident::show_main(app)
+        }))
         .plugin(tauri_plugin_dialog::init())
+        .setup(resident::setup)
+        .on_window_event(resident::on_window_event)
         .manage(AppState::default())
         .manage(video::VideoState::default())
         .manage(updater::UpdateState::default())

@@ -4,13 +4,19 @@
 
 ## 安装与更新
 
-当前版本为 v0.4.0。下载 [GitHub Release](https://github.com/hyieq/DSFileDesk/releases/latest) 中的 `FileDesk-0.4.0-windows-x64.msi` 并运行，安装包包含视频解码器及第三方许可信息。MSI 使用固定 UpgradeCode，后续新版可覆盖升级；账号保存在用户应用数据目录，密码由系统凭据库管理。
+当前版本为 v0.4.1。下载 [GitHub Release](https://github.com/hyieq/DSFileDesk/releases/latest) 中的 `FileDesk-0.4.1-windows-x64.msi` 并运行，安装包包含视频解码器及第三方许可信息。MSI 使用固定 UpgradeCode，后续新版可覆盖升级；账号保存在用户应用数据目录，密码由系统凭据库管理。
 
 打开左上角账号卡片，在账号窗口左下角点击“检查更新”。客户端通过 GitHub Releases 公共 API 检查正式版，按语义版本号比较，下载匹配的 Windows x64 MSI，验证长度与 SHA-256，随后可点击“安装更新”。安装将关闭客户端，存在文件传输任务时暂不允许安装。新版安装包在 GitHub 上随 Release 一起提供，仓库和 Release 必须可公开访问。SHA-256 优先读取 GitHub asset digest，兼容同一 Release 中的 `SHA256SUMS.txt`；软件目前未使用 Windows Authenticode 证书签名。
 
 GitHub 请求受限或网络失败会显示错误，可再次检查。预发布版本和旧版本不会作为更新安装；下载失败或校验失败的文件不能进入安装流程。
 
 已验证：前端生产构建、12 项前端测试、14 项 Rust 测试，覆盖模拟 DSM 上传鉴权与流式数据、更新版本比较、来源地址约束、摘要解析及篡改检测。真实 NAS 上传与原生视频画面仍需实机验收。
+
+## 单实例与托盘
+
+FileDesk 以单实例常驻运行。重复启动 EXE 时，新启动的进程直接退出，并显示、恢复及聚焦已有主窗口，不会重复登录 NAS。点窗口关闭按钮会隐藏到系统托盘，上传、下载及会话继续保留；单击托盘图标或右键选择“打开 FileDesk”可恢复窗口，右键选择“退出 FileDesk”可完全退出。
+
+本地可先退出已有客户端，然后运行 `./scripts/test-single-instance.ps1`，验证连续四次启动均退出重复进程，原始进程持续存在。测试只会清理自己启动的进程。
 
 ## 发布 MSI
 
@@ -22,6 +28,11 @@ npm ci
 脚本会在需要时下载官方 LibVLC 并验证校验值，然后构建 MSI；输出为 `release/FileDesk-<版本>-windows-x64.msi` 和 `release/SHA256SUMS.txt`。本地需要使用 rsproxy 时可传 `-UseRegistryMirror`。
 
 版本号需同步修改 `package.json`、`package-lock.json` 根包、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json`，并让 Cargo 更新锁文件中的 FileDesk 版本。更新 `.github/release-notes.md`，提交后推送 `v<版本>` 标签，会触发 `.github/workflows/release.yml`：Windows 构建、前后端测试、上传 Actions 构件，最后创建 GitHub Release 并上传 MSI 与 SHA-256 清单。手动触发 workflow 只生成 Actions 构件，标签触发才公开发布 Release。
+
+### v0.4.1 变更
+
+- 防止重复启动多个进程和窗口，再次启动时恢复已有窗口。
+- 关闭窗口后常驻系统托盘，托盘菜单提供打开和退出操作。
 
 ### v0.4.0 变更
 
